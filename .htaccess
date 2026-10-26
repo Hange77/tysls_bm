@@ -1,0 +1,42 @@
+# 书签导航系统 - Apache URL重写规则
+# 支持根目录安装和子目录安装(如 /v1/)
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# 注意: 不设置 RewriteBase,让Apache自动使用当前目录路径(支持子目录安装)
+# 如果是根目录安装且遇到重写问题,可取消下一行注释:
+# RewriteBase /
+
+# 如果是已存在的文件或目录,不重写
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# /api/v1/xxx -> /api/v1/xxx.php（浏览器插件 REST 接口：支持 /api/v1/login 等干净 URL）
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/v1/(.+)$ api/v1/$1.php [L]
+
+# /u/用户名 -> u.php?name=用户名
+RewriteRule ^u/([a-zA-Z0-9_]+)/?$ u.php?name=$1 [L,QSA]
+
+# /page/数字或别名 -> page.php?param=数字或别名
+RewriteRule ^page/([0-9a-zA-Z_-]+)/?$ page.php?param=$1 [L,QSA]
+
+# /category/数字或别名 -> category.php?param=数字或别名
+RewriteRule ^category/([0-9a-zA-Z_-]+)/?$ category.php?param=$1 [L,QSA]
+
+# 禁止访问 includes 和 install 目录
+RewriteRule ^(includes|install)/ - [F,L]
+</IfModule>
+
+# 安全: 禁止访问敏感文件
+<FilesMatch "\.(env|sql|md|log|ini|sh)$">
+    Require all denied
+</FilesMatch>
+
+# 默认字符集
+AddDefaultCharset UTF-8
+
+# 禁止目录列表
+Options -Indexes

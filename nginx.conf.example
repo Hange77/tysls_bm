@@ -1,0 +1,121 @@
+# ============================================================
+# 书签导航系统 v1.3.9正式版 - Nginx 配置示例
+# 宝塔面板: 网站设置 -> 配置文件, 将规则添加到 server {} 块内
+#
+# 【重要】子目录安装说明:
+# 如果程序安装在子目录(如 /test/),有两种方式:
+# 方式一(推荐): 在宝塔面板将网站根目录设置到子目录
+#   如: 根目录 = /www/wwwroot/nav.tysls.com/test
+#   然后直接使用下方"根目录安装"的规则即可
+#
+# 方式二: 域名根目录不变,通过 /test/ 访问
+#   使用下方"子目录安装"的规则
+#
+# 【关键提醒】子目录安装时,所有 rewrite 目标路径必须包含子目录前缀!
+# 例如子目录是 /test/,则 rewrite 目标必须是 /test/u.php,而不是 /u.php
+# 否则会出现 404 错误!
+# ============================================================
+server {
+    listen 80;
+    server_name your-domain.com;
+    # ============================================================
+    # 根目录安装(程序直接放在网站根目录)
+    # ============================================================
+    root /www/wwwroot/your-domain.com;
+    index index.php index.html;
+    charset utf-8;
+    # URL 重写
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    # /u/用户名 -> u.php?name=用户名
+    location ~ ^/u/([a-zA-Z0-9_]+)/?$ {
+        rewrite ^/u/([a-zA-Z0-9_]+)/?$ /u.php?name=$1 last;
+    }
+    # /page/数字或别名 -> page.php?param=数字或别名
+    location ~ ^/page/([0-9a-zA-Z_-]+)/?$ {
+        rewrite ^/page/([0-9a-zA-Z_-]+)/?$ /page.php?param=$1 last;
+    }
+    # /category/数字或别名 -> category.php?param=数字或别名
+    location ~ ^/category/([0-9a-zA-Z_-]+)/?$ {
+        rewrite ^/category/([0-9a-zA-Z_-]+)/?$ /category.php?param=$1 last;
+    }
+    # /api/v1/xxx -> /api/v1/xxx.php（浏览器插件 REST 接口干净 URL，可选）
+    location ~ ^/api/v1/(.+)$ {
+        try_files $uri $uri/ /api/v1/$1.php?$query_string;
+    }
+    # ============================================================
+    # 子目录安装 - /test/ 完整配置示例(可直接复制使用)
+    # 使用时请注释上方根目录规则,取消下方注释
+    # 如果你的子目录不是 test,请将所有 /test 替换为你的子目录名
+    # ============================================================
+    #
+    # location ^~ /test/ {
+    #     # /test/u/用户名 -> /test/u.php?name=用户名
+    #     rewrite ^/test/u/([a-zA-Z0-9_]+)/?$ /test/u.php?name=$1 last;
+    #     # /test/page/数字 -> /test/page.php?id=数字
+    #     rewrite ^/test/page/([0-9a-zA-Z_-]+)/?$ /test/page.php?param=$1 last;
+    #     # /test/category/数字 -> /test/category.php?id=数字
+    #     rewrite ^/test/category/([0-9a-zA-Z_-]+)/?$ /test/category.php?param=$1 last;
+    #
+    #     # 其他请求尝试直接访问文件,不存在则交给index.php
+    #     try_files $uri $uri/ /test/index.php?$query_string;
+    #
+    #     # PHP处理(子目录内)
+    #     location ~ \.php$ {
+    #         fastcgi_pass unix:/tmp/php-cgi.sock;
+    #         fastcgi_index index.php;
+    #         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    #         include fastcgi_params;
+    #     }
+    # }
+    #
+    # # 禁止访问子目录下的敏感目录
+    # location ~ ^/test/(includes|install)/ {
+    #     deny all;
+    #     return 403;
+    # }
+    #
+    # ============================================================
+    # 通用子目录模板(将 SUBDIR 替换为你的子目录名)
+    # ============================================================
+    # location ^~ /SUBDIR/ {
+    #     rewrite ^/SUBDIR/u/([a-zA-Z0-9_]+)/?$ /SUBDIR/u.php?name=$1 last;
+    #     rewrite ^/SUBDIR/page/([0-9a-zA-Z_-]+)/?$ /SUBDIR/page.php?param=$1 last;
+    #     rewrite ^/SUBDIR/category/([0-9a-zA-Z_-]+)/?$ /SUBDIR/category.php?param=$1 last;
+    #     try_files $uri $uri/ /SUBDIR/index.php?$query_string;
+    #     location ~ \.php$ {
+    #         fastcgi_pass unix:/tmp/php-cgi.sock;
+    #         fastcgi_index index.php;
+    #         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    #         include fastcgi_params;
+    #     }
+    # }
+    # PHP 处理(根目录安装使用)
+    location ~ \.php$ {
+        fastcgi_pass unix:/tmp/php-cgi.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    # 禁止访问敏感目录和文件
+    location ~ ^/(includes|install)/ {
+        deny all;
+        return 403;
+    }
+    location ~ /\.(ht|user\.ini|git|env) {
+        deny all;
+        return 403;
+    }
+    location ~* \.(sql|log|sh|ini)$ {
+        deny all;
+        return 403;
+    }
+    # 禁止目录列表
+    autoindex off;
+    # 静态资源缓存
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+}
